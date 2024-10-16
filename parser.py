@@ -208,21 +208,21 @@ if __name__ == "__main__":
 
     driver = start_webdriver()
 
+    create_categories_table()
+    categories = parse_categories(driver, URL)
+
+    table = PrettyTable()
+    table.add_column("Название", [i.name for i in categories])
+    table.add_column("Ссылка", [i.url for i in categories])
+
+    print(table)
+
+    for category in categories:
+        print(f"Запись категории {category.name}")
+        insert_category(category)
+
+    print("Парсинг категорий")
+    create_product_table()
     parse_category_products(driver)
 
-    # create_product_table()
-    # categories = parse_categories(driver, URL)
-
-    # table = PrettyTable()
-    # table.add_column("Название", [i.name for i in categories])
-    # table.add_column("Ссылка", [i.url for i in categories])
-
-    # print(table)
-
-    # create_categories_table()
-
-    # for category in categories:
-    #     print(f"Запись категории {category.name}")
-    #     insert_category(category)
-
-    # stop_app(driver)
+    stop_app(driver)

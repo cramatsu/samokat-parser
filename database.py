@@ -15,7 +15,7 @@ def create_connection():
 
 
 def fetch_categories():
-    """Получение категорий из базы данных."""
+
     conn = create_connection()
     cursor = conn.cursor()
 
@@ -73,14 +73,14 @@ def insert_product(name, price, weight, url, category_id, img_url):
 
 
 def create_categories_table():
-    """Создание таблицы категорий, если она не существует."""
+
     conn = create_connection()
     cursor = conn.cursor()
 
     create_table_query = """
     CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
+        name TEXT UNIQUE NOT NULL,
         url TEXT NOT NULL,
         img_url TEXT
     );
@@ -97,9 +97,12 @@ def insert_category(category):
     conn = create_connection()
     cursor = conn.cursor()
 
-    insert_query = sql.SQL(
-        "INSERT INTO categories (name, url, img_url) VALUES (%s, %s, %s)"
-    )
+    insert_query = """
+    INSERT INTO categories (name, url, img_url)
+    VALUES (%s, %s, %s)
+    ON CONFLICT (name) DO NOTHING;
+    """
+
     cursor.execute(insert_query, (category.name, category.url, category.img_url))
 
     conn.commit()
