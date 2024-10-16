@@ -139,7 +139,6 @@ def parse_category_products(driver: webdriver.Chrome, max_len=10):
         driver.get(url)
         time.sleep(3)
 
-        driver.save_screenshot(f"./screenshot_category_{id}.png")
         mp = driver.page_source
 
         soup = BeautifulSoup(mp, "html.parser")
