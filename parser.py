@@ -1,20 +1,24 @@
+import os
+import time
+
+import argparse as ap
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
-from prettytable import PrettyTable
-
 from bs4 import BeautifulSoup
-import time
 
 from database import (
-    create_categories_table,
     insert_category,
     fetch_categories,
-    create_product_table,
     insert_product,
+    check_database_and_tables,
 )
 
+from logger import setup_logger
+
+logger = setup_logger()
 
 URL = "https://samokat.ru/"
 
@@ -26,53 +30,39 @@ class Category:
         self.img_url = img_url
 
 
-class Product:
-    def __init__(
-        self,
-        category_id,
-        name,
-        weight,
-        price,
-        url,
-        img_url,
-        description="",
-        old_price=None,
-    ):
-        self.category_id = category_id
-        self.weight = weight
-        self.name = name
-        self.price = price
-        self.description = description
-        self.disc_price = old_price
-        self.url = url
-        self.img_url = img_url
-
-    def print(self):
-        print(f"{self.name} - {self.price}")
-        print(f"{self.description}")
-        print(f"{self.url}")
-        print(f"{self.img_url}")
-        print(f"Цена со скидкой: {self.old_price}")
+def is_running_in_docker():
+    """
+    Проверяет, работает ли приложение внутри контейнера Docker.
+    Возвращает True, если в контейнере, иначе False.
+    """
+    path = "/proc/self/cgroup"
+    return (
+        os.path.exists("/.dockerenv")
+        or os.path.isfile(path)
+        and any("docker" in line for line in open(path))
+    )
 
 
 def start_webdriver():
-    chrome_options = Options()
 
-    # Запуск браузера в headless режиме
-    chrome_options.add_argument("--headless=new")
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--start-maximized")
-    chrome_options.add_argument("--start-fullscreen")
-    chrome_options.add_argument("--no-proxy-server")  # Убрать прокси, если не нужно
+
     chrome_options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
     )
 
-    service = Service(executable_path="./chromedriver.exe")
+    command_executor_url = (
+        "http://selenium-chrome:4444/wd/hub"
+        if is_running_in_docker()
+        else "http://localhost:4444/wd/hub"
+    )
 
-    #
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    logger.info("Подключение к драйверу")
+    driver = webdriver.Remote(command_executor_url, options=chrome_options)
+    logger.info("Подключено")
+
     return driver
 
 
@@ -106,35 +96,20 @@ def parse_categories(driver, url):
             category = Category(name=name, url=f"{URL}{link[1:]}", img_url=img_url)
             categories.append(category)
 
-            print(
-                f"Название: {category.name}, Ссылка: {URL + category.url}, URL изображения: {category.img_url}"
-            )
-
     return categories
 
 
-# Парсинг страницы с товарами
-def parse_products(driver, url):
-    # driver.get(url)
-    # time.sleep(8)  # Подождем немного для полной загрузки страницы
-
-    # main_page = driver.page_source
-
-    # soup = BeautifulSoup(main_page, "html.parser")
-
-    # TODO
-    pass
-
-
 def parse_category_products(driver: webdriver.Chrome, max_len=10):
-    print("Запуск парсинга категорий")
-    categories_raw = fetch_categories()[:10]
+    logger.info("Запуск парсинга категорий")
 
-    print(f"Доступно категорий: {len(categories_raw)}")
+    categories_raw = fetch_categories()[:max_len]
+
+    logger.warning(f"Лимит категорий: {max_len}")
+    logger.info(f"Доступно категорий: {len(categories_raw)}")
 
     for category in categories_raw:
         id, name, url = category
-        print(f"Парсинг категории: {name} / {url}")
+        logger.info(f"Начало парсинга категории {name} ({id})")
 
         driver.get(url)
         time.sleep(3)
@@ -184,45 +159,49 @@ def parse_category_products(driver: webdriver.Chrome, max_len=10):
                     else:
                         price = outer_span.text.strip()
 
+                    price = int(price.replace("₽", "").replace(" ", ""))
+
                     insert_product(
                         name=p_name,
                         weight=product_specification,
-                        price=price.split(" ")[0],
+                        price=price,
                         url=URL + a_tag["href"][1:],
                         img_url=img_url,
                         category_id=id,
                     )
-                    print(f"Запись продукта {p_name} в категорию {name}")
 
             except Exception as e:
                 print(f"Ошибка: {e}")
+        logger.info(f"Категория {name} завершена")
 
 
-# Остановка приложения
-def stop_app(driver):
-    driver.quit()
-
-
-# Основная функция запуска парсера
 if __name__ == "__main__":
+
+    parser = ap.ArgumentParser(description="Парсер данных с сайта")
+
+    parser.add_argument(
+        "--parse-categories",
+        action="store_true",
+        help="Если указано, категории будут спарсены с сайта",
+    )
+
+    args = parser.parse_args()
+
+    check_database_and_tables()
 
     driver = start_webdriver()
 
-    create_categories_table()
-    categories = parse_categories(driver, URL)
+    if args.parse_categories:
+        logger.info("Парсинг категорий")
+        categories = parse_categories(driver, URL)
 
-    table = PrettyTable()
-    table.add_column("Название", [i.name for i in categories])
-    table.add_column("Ссылка", [i.url for i in categories])
+        logger.info("Запись категорий")
 
-    print(table)
+        for category in categories:
+            logger.info(f"Категория {category.name} записана")
+            insert_category(category)
+        logger.info("Категории записаны")
 
-    for category in categories:
-        print(f"Запись категории {category.name}")
-        insert_category(category)
-
-    print("Парсинг категорий")
-    create_product_table()
     parse_category_products(driver)
 
-    stop_app(driver)
+    driver.quit()

@@ -1,5 +1,11 @@
 import psycopg2
+import sys
+
 from psycopg2 import sql
+from logger import setup_logger
+
+
+logger = setup_logger(__name__)
 
 
 def create_connection():
@@ -12,6 +18,41 @@ def create_connection():
         port="5432",
     )
     return conn
+
+
+def check_database_and_tables():
+    """Проверка работоспособности подключения к БД и наличия таблиц."""
+    logger.info("Проверка доступа к СУБД")
+    try:
+        conn = create_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT current_database();")
+        db_name = cursor.fetchone()[0]
+
+        logger.info(f"Подключено к базе данных: {db_name}")
+
+        # Проверка наличия таблиц
+        tables = ["categories", "products"]
+        for table in tables:
+            cursor.execute(
+                sql.SQL(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = %s);"
+                ),
+                [table],
+            )
+            exists = cursor.fetchone()[0]
+            if exists:
+                logger.info(f"Таблица '{table}' существует.")
+            else:
+                logger.error(f"Таблица '{table}' не найдена.")
+
+        cursor.close()
+        conn.close()
+
+    except psycopg2.Error as e:
+        logger.error(f"Ошибка при подключении к базе данных: {e}")
+        sys.exit(1)
 
 
 def fetch_categories():
@@ -28,29 +69,6 @@ def fetch_categories():
     return categories
 
 
-def create_product_table():
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    create_table_query = """
-    CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        price NUMERIC(10, 2) NOT NULL,
-        weight TEXT,
-        url TEXT UNIQUE NOT NULL,
-        category_id INT NOT NULL,
-        img_url TEXT,
-        FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
-    );
-    """
-
-    cursor.execute(create_table_query)
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
 def insert_product(name, price, weight, url, category_id, img_url):
     conn = create_connection()
     cursor = conn.cursor()
@@ -61,35 +79,14 @@ def insert_product(name, price, weight, url, category_id, img_url):
     ON CONFLICT (url) DO NOTHING;
     """
     try:
-
         cursor.execute(insert_query, (name, price, weight, url, category_id, img_url))
         conn.commit()
-        print(f"Товар {name} успешно добавлен.")
+        logger.info(f"Добавлен товар ({name})[C_ID: {category_id}]")
     except Exception as e:
         print(f"Ошибка при добавлении товара: {e}")
     finally:
         cursor.close()
         conn.close()
-
-
-def create_categories_table():
-
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    create_table_query = """
-    CREATE TABLE IF NOT EXISTS categories (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL,
-        url TEXT NOT NULL,
-        img_url TEXT
-    );
-    """
-
-    cursor.execute(create_table_query)
-    conn.commit()
-    cursor.close()
-    conn.close()
 
 
 def insert_category(category):

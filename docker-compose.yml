@@ -1,8 +1,11 @@
-version: "3.8"
+version: "3"
 
 services:
   db:
-    image: postgres:13-alpine
+    build:
+      context: docker/postgres
+      dockerfile: Dockerfile
+    container_name: "postgres"
     restart: always
     environment:
       POSTGRES_DB: samokat_data
@@ -12,6 +15,33 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - 5432:5432
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "PGPASSWORD=admin pg_isready -h localhost -p 5432 -U mirea -d samokat_data",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  selenium-chrome:
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sSL", "http://localhost:4444/wd/hub/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: always
+    image: selenium/standalone-chrome
+    ports:
+      - "4444:4444"
+    volumes:
+      - /dev/shm:/dev/shm
 
 volumes:
   postgres_data:
