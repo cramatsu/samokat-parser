@@ -102,12 +102,14 @@ def parse_categories(driver, url):
 def parse_category_products(driver: webdriver.Chrome, max_len=10):
     logger.info("Запуск парсинга категорий")
 
-    categories_raw = fetch_categories()[:max_len]
+    categories_raw = fetch_categories()
+
+    available_categories = categories_raw[:max_len]
 
     logger.warning(f"Лимит категорий: {max_len}")
     logger.info(f"Доступно категорий: {len(categories_raw)}")
 
-    for category in categories_raw:
+    for category in available_categories:
         id, name, url = category
         logger.info(f"Начало парсинга категории {name} ({id})")
 
