@@ -10,6 +10,10 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
 
 class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
@@ -21,3 +25,6 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    verbose_name = "Product"
+    verbose_name_plural = "Products"
