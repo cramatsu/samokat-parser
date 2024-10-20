@@ -1,30 +1,13 @@
-import os
 import time
-import logging
-
 from django.core.management.base import BaseCommand
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from smk_parse.models import Product, Category
-from logger import setup_logger  # Импорт логгера
+from logger import setup_logger
+
+from .utils.webdriver import start_webdriver
 
 URL = "https://samokat.ru/"
-logger = setup_logger()  # Настройка логгера
-
-
-def start_webdriver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
-    )
-
-    driver = webdriver.Remote(
-        command_executor="http://localhost:4444/wd/hub", options=chrome_options
-    )
-    return driver
+logger = setup_logger()
 
 
 def parse_category_products(driver, category):
@@ -60,7 +43,6 @@ def parse_category_products(driver, category):
             outer_span = price_div.find("span")
             price = int(outer_span.text.replace("₽", "").replace(" ", "").strip())
 
-            # Сохраняем продукт в базу данных
             Product.objects.update_or_create(
                 name=p_name,
                 defaults={
@@ -77,20 +59,27 @@ def parse_category_products(driver, category):
 class Command(BaseCommand):
     help = "Парсит продукты по сохранённым категориям"
 
+    def add_arguments(self, parser):
+
+        parser.add_argument(
+            "--limit", type=int, default=None, help="Лимит категорий для парсинга"
+        )
+
     def handle(self, *args, **kwargs):
-        logger.info("Начинаю парсинг продуктов по категориям...")
+        limit = kwargs.get("limit")
+        logger.info(f"Начинаю парсинг продуктов по категориям (лимит: {limit})...")
 
         driver = start_webdriver()
 
         try:
-            categories = (
-                Category.objects.all()
-            )  # Получение всех категорий из базы данных
+
+            categories = Category.objects.all()
+
+            if limit:
+                categories = categories[:limit]
 
             for category in categories:
-                parse_category_products(
-                    driver, category
-                )  # Парсинг продуктов по категории
+                parse_category_products(driver, category)
                 logger.info(
                     f"Парсинг продуктов для категории {category.name} завершен."
                 )
