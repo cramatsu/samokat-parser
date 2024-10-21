@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:13-alpine
+    image: arm64v8/postgres:13-alpine
     container_name: "postgres"
     restart: always
     environment:
@@ -32,7 +32,7 @@ services:
       retries: 5
       start_period: 60s
     restart: always
-    image: selenium/standalone-chrome
+    image: seleniarm/standalone-chromium:latest
     ports:
       - "4444:4444"
     volumes:
