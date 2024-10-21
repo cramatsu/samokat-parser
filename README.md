@@ -57,7 +57,7 @@
 
 **Теперь, когда проект настроен, мы можем приступить к парсингу данных, для этого, не выходя из django-контейнера, используются следующие команды:**
 
-*Последовательность команд при первом запуске приложения: `fetch_categories` -> `parse_categories`*
+*Последовательность команд при первом запуске приложения: `fetch_categories` -> `parse_products`*
 
 ### `fetch_categories`
 **Описание**:  
@@ -75,7 +75,7 @@ python manage.py fetch_categories
 ```
 <hr/>
 
-### `parse_categories`
+### `parse_products`
 
 **Описание**:  
 Эта команда парсит категории с сайта Samokat, извлекая их название и URL. Она сохраняет данные о категориях в базу данных, чтобы впоследствии использовать их для парсинга товаров.
@@ -86,16 +86,16 @@ python manage.py fetch_categories
 **Функциональность**:
 - Переход на главную страницу сайта Samokat.
 - Извлечение списка категорий с их названиями и URL.
-- Сохранение категорий в таблице `categories` базы данных.
+- Сохранение категорий в таблице `products` базы данных.
 
 **Запуск**:
 Чтобы запустить команду и обновить категории в базе данных:
 ```bash
-python manage.py parse_categories
+python manage.py parse_products
 ```
 **или**
 ```bash
-python manage.py parse_categories --limit 10
+python manage.py parse_products --limit 10
 ```
 
 ## Админ-панель Django
