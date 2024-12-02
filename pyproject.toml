@@ -7,7 +7,7 @@ license = "WTFPL"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "3.11.10"
+python = "^3.11"
 amqp = "5.2.0"
 asgiref = "3.8.1"
 attrs = "24.2.0"

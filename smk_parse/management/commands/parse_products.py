@@ -37,11 +37,42 @@ def parse_category_products(driver, category):
                 .find("span")
                 .text
             )
-            price_div = a_tag.find(
-                "div", {"class": "ProductCardActions_text__3Uohy"}
-            ).find("span")
-            outer_span = price_div.find("span")
-            price = int(outer_span.text.replace("₽", "").replace(" ", "").strip())
+
+            try:
+
+                price_span = a_tag.find(
+                    "span", {"class": "ProductCardActions_oldPrice__d7vDY"}
+                )
+
+                if price_span:
+
+                    raw_price = (
+                        price_span.text.replace("₽", "").replace("\xa0", "").strip()
+                    )
+                    price = int(raw_price)
+                else:
+
+                    price_container = a_tag.find(
+                        "div", {"class": "ProductCardActions_text__3Uohy"}
+                    )
+                    if price_container:
+                        regular_price_span = price_container.find("span")
+                        if regular_price_span:
+                            raw_price = (
+                                regular_price_span.text.replace("₽", "")
+                                .replace("\xa0", "")
+                                .strip()
+                            )
+                            price = int(raw_price)
+                        else:
+                            price = 0
+                    else:
+                        price = 0
+                        logger.warning("Не найден контейнер цены для продукта")
+
+            except Exception as e:
+                price = 0
+                logger.error(f"Ошибка при получении цены: {e}")
 
             Product.objects.update_or_create(
                 name=p_name,
@@ -85,6 +116,9 @@ class Command(BaseCommand):
                 )
 
         except Exception as e:
+            import traceback
+
             logger.error(f"Ошибка при парсинге продуктов: {e}")
+            logger.error(traceback.format_exc())
         finally:
             driver.quit()
