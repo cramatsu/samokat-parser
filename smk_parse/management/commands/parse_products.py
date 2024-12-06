@@ -74,17 +74,24 @@ def parse_category_products(driver, category):
                 price = 0
                 logger.error(f"Ошибка при получении цены: {e}")
 
-            Product.objects.update_or_create(
-                name=p_name,
-                defaults={
-                    "weight": product_specification,
-                    "price": price,
-                    "url": URL + a_tag["href"][1:],
-                    "img_url": img_url,
-                    "category": category,
-                },
-            )
-            logger.info(f"Продукт '{p_name}' успешно добавлен.")
+            try:
+                _, created = Product.objects.get_or_create(
+                    name=p_name,
+                    defaults={
+                        "weight": product_specification,
+                        "price": price,
+                        "url": URL + a_tag["href"][1:],
+                        "img_url": img_url,
+                        "category": category,
+                    },
+                )
+                if created:
+                    logger.info(f"Продукт '{p_name}' успешно добавлен.")
+                else:
+                    logger.info(f"Продукт '{p_name}' уже существует, пропускаем.")
+            except Exception as e:
+                logger.error(f"Ошибка при создании продукта '{p_name}': {e}")
+                continue
 
 
 class Command(BaseCommand):

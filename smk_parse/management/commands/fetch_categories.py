@@ -29,13 +29,17 @@ def parse_categories(driver, url):
             name_tag = a_tag.find("span", {"class": "Text_text__7SbT7"})
             name = name_tag.text if name_tag else "Без названия"
 
-            category, created = Category.objects.get_or_create(
-                name=name, defaults={"url": f"{URL}{link[1:]}", "img_url": img_url}
-            )
-            if created:
-                logger.info(f"Категория '{name}' успешно добавлена.")
-            else:
-                logger.info(f"Категория '{name}' уже существует.")
+            try:
+                _, created = Category.objects.get_or_create(
+                    name=name, defaults={"url": f"{URL}{link[1:]}", "img_url": img_url}
+                )
+                if created:
+                    logger.info(f"Категория '{name}' успешно добавлена.")
+                else:
+                    logger.info(f"Категория '{name}' уже существует, пропускаем.")
+            except Exception as e:
+                logger.warning(f"Не удалось добавить категорию '{name}': {e}")
+                continue
 
 
 class Command(BaseCommand):
